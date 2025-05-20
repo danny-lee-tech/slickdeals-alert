@@ -3,10 +3,13 @@ module github.com/danny-lee-tech/slickdeals-alert
 go 1.24.2
 
 require (
-	github.com/PuerkitoBio/goquery v1.10.3 // indirect
+	github.com/PuerkitoBio/goquery v1.10.3
+	github.com/chromedp/chromedp v0.13.6
+)
+
+require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/chromedp/cdproto v0.0.0-20250420205042-3f8c33ccbdec // indirect
-	github.com/chromedp/chromedp v0.13.6 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/go-json-experiment/json v0.0.0-20250417205406-170dfdcf87d1 // indirect
 	github.com/gobwas/httphead v0.1.0 // indirect

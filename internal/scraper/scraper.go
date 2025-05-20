@@ -1,10 +1,9 @@
-package main
+package scraper
 
 import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,12 +14,36 @@ import (
 )
 
 const (
-	baseurl string = "https://www.slickdeals.net/"
-	url     string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=1&f=9&sort=threadstarted&order=desc&r=1"
+	baseurl string = "https://www.slickdeals.net/%s"
+	url     string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=%d&f=9&sort=threadstarted&order=desc&r=1"
 )
 
-func scrapeUrl() (string, error) {
-	fmt.Println("Scraping URL: " + url)
+type Scraper struct {
+	VoteFilter        int // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
+	NotifyMinimumRank int // the minimum number of thumbs up x 2 before a notification occurs
+}
+
+func (r Scraper) Execute() ([]Result, error) {
+	htmlContent, err := r.scrape()
+	if err != nil {
+		return nil, err
+	}
+
+	selection, err := retrieveTableElement(htmlContent)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.collect(selection)
+}
+
+func (r Scraper) getScrapeURL() string {
+	return fmt.Sprintf(url, r.VoteFilter)
+}
+
+func (r Scraper) scrape() (string, error) {
+	scrapeUrl := r.getScrapeURL()
+	fmt.Printf("Scraping URL: %s\n", scrapeUrl)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -29,7 +52,7 @@ func scrapeUrl() (string, error) {
 
 	var htmlContent string
 	err := chromedp.Run(c,
-		chromedp.Navigate(url),
+		chromedp.Navigate(scrapeUrl),
 		chromedp.WaitVisible("#threadbits_forum_9", chromedp.ByID),
 		chromedp.OuterHTML("body", &htmlContent),
 	)
@@ -52,73 +75,28 @@ func retrieveTableElement(htmlContent string) (*goquery.Selection, error) {
 	return selection, nil
 }
 
-func logTableElement(selection *goquery.Selection) {
-	body, _ := selection.Html()
-	file, err := os.Create("body.xml")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(body)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-}
-
-func main() {
-	htmlContent, err := scrapeUrl()
-	if err != nil {
-		return
-	}
-
-	selection, err := retrieveTableElement(htmlContent)
-	if err != nil {
-		return
-	}
-
-	logTableElement(selection)
-
-	file, err := os.Create("row.xml")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	_, err = file.WriteString("<html>")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
+func (r Scraper) collect(selection *goquery.Selection) ([]Result, error) {
+	var results []Result
 	selection.Find("td[id^='td_threadtitle_'] .concat-thumbs").Each(func(index int, row *goquery.Selection) {
 		class, _ := row.Attr("class")
 		re, err := regexp.Compile(`rating(\d+)`)
 		if err == nil {
 			matches := re.FindStringSubmatch(class)
 			rating, err := strconv.ParseInt(matches[1], 10, 64)
-			if err == nil && rating > 5 {
+			if err == nil && rating > int64(r.NotifyMinimumRank) {
 				threadElement := row.Parent().Parent().Parent()
 				anchorElement := threadElement.Find("span.blueprint a").First()
-				text := anchorElement.Text()
-				fmt.Println(text)
+				returnText := anchorElement.Text()
 				hrefValue, _ := anchorElement.Attr("href")
-				fmt.Println(baseurl + hrefValue)
+				returnUrl := fmt.Sprintf(baseurl, hrefValue)
+				result := Result{
+					Url:  returnUrl,
+					Text: returnText,
+				}
+				results = append(results, result)
 			}
-		}
-		html, _ := row.Parent().Parent().Parent().Html()
-		_, err = file.WriteString(html)
-		if err != nil {
-			log.Fatal(err)
-			return
 		}
 	})
 
-	_, err = file.WriteString("</html>")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	return results, nil
 }
