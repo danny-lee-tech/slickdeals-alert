@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	baseurl string = "https://www.slickdeals.net/%s"
-	url     string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=%d&f=9&sort=threadstarted&order=desc&r=1"
+	baseurl     string = "https://www.slickdeals.net/%s"
+	url         string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=%d&f=9&sort=threadstarted&order=desc&r=1"
+	ignoreTitle string = "A tl;dr of Slickdeals Rules and Guidelines and all that fun stuff"
 )
 
 type Scraper struct {
@@ -82,16 +83,22 @@ func (r Scraper) collect(selection *goquery.Selection) ([]Result, error) {
 		re, err := regexp.Compile(`rating(\d+)`)
 		if err == nil {
 			matches := re.FindStringSubmatch(class)
-			rating, err := strconv.ParseInt(matches[1], 10, 64)
-			if err == nil && rating > int64(r.NotifyMinimumRank) {
+			rating, err := strconv.Atoi(matches[1])
+			if err == nil && rating >= r.NotifyMinimumRank {
 				threadElement := row.Parent().Parent().Parent()
 				anchorElement := threadElement.Find("span.blueprint a").First()
 				returnText := anchorElement.Text()
+
+				if returnText == ignoreTitle {
+					return
+				}
+
 				hrefValue, _ := anchorElement.Attr("href")
 				returnUrl := fmt.Sprintf(baseurl, hrefValue)
 				result := Result{
 					Url:  returnUrl,
 					Text: returnText,
+					Rank: rating,
 				}
 				results = append(results, result)
 			}
