@@ -3,7 +3,6 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -58,7 +57,6 @@ func (r Scraper) scrape() (string, error) {
 		chromedp.OuterHTML("body", &htmlContent),
 	)
 	if err != nil {
-		log.Fatal("Error:", err)
 		return "", err
 	}
 
@@ -68,7 +66,6 @@ func (r Scraper) scrape() (string, error) {
 func retrieveTableElement(htmlContent string) (*goquery.Selection, error) {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
-		log.Fatal("Goquery error:", err)
 		return nil, err
 	}
 

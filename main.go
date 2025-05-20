@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
+	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/scraper"
 )
 
@@ -24,10 +26,14 @@ func main() {
 		return
 	}
 
-	for i, result := range results {
-		fmt.Printf("Result %d:\n", i)
-		fmt.Printf("Title: %s\n", result.Text)
-		fmt.Printf("URL: %s\n", result.Url)
-		fmt.Printf("Rank: %d\n", result.Rank)
+	var sb strings.Builder
+
+	for _, result := range results {
+		sb.WriteString(fmt.Sprintf("Title: %s\n", result.Text))
+		sb.WriteString(fmt.Sprintf("URL: %s\n", result.Url))
+		sb.WriteString(fmt.Sprintf("Rank: %d\n\n", result.Rank))
 	}
+
+	fmt.Print(sb.String())
+	emailer.Email(sb.String())
 }
