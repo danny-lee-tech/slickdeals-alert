@@ -3,6 +3,8 @@ package scraper
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
+	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
 )
 
 const (
@@ -19,22 +22,88 @@ const (
 )
 
 type Scraper struct {
-	VoteFilter        int // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
-	NotifyMinimumRank int // the minimum number of thumbs up x 2 before a notification occurs
+	VoteFilter        int                        // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
+	NotifyMinimumRank int                        // the minimum number of thumbs up x 2 before a notification occurs
+	GmailSetting      emailer.GmailSettingConfig // Email Settings
 }
 
-func (r Scraper) Execute() ([]Result, error) {
+func (r Scraper) Execute() error {
 	htmlContent, err := r.scrape()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	selection, err := retrieveTableElement(htmlContent)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return r.collect(selection)
+	results, err := r.collect(selection)
+	if err != nil {
+		return err
+	}
+
+	if len(results) == 0 {
+		fmt.Println("No results found")
+		return nil
+	}
+	resultString := formatResults(results)
+
+	matches, err := matchesPreviousResults(resultString)
+	if err != nil {
+		return err
+	}
+	if matches {
+		fmt.Println("Duplicate results. Avoiding email notification.")
+		return nil
+	}
+	emailer.Email(r.GmailSetting, resultString)
+
+	return nil
+}
+
+func matchesPreviousResults(resultsString string) (bool, error) {
+	file, err := os.OpenFile("last_results.txt", os.O_RDONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	lastResults, err := io.ReadAll(file)
+	if err != nil {
+		return false, err
+	}
+	lastResultsString := string(lastResults)
+
+	if lastResultsString == resultsString {
+		return true, nil
+	}
+
+	file, err = os.OpenFile("last_results.txt", os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	_, err = file.Write([]byte(resultsString))
+	if err != nil {
+		return false, err
+	}
+
+	return false, nil
+}
+
+func formatResults(results []Result) string {
+	var sb strings.Builder
+
+	for _, result := range results {
+		sb.WriteString(fmt.Sprintf("Title: %s\n", result.Text))
+		sb.WriteString(fmt.Sprintf("URL: %s\n", result.Url))
+		sb.WriteString(fmt.Sprintf("Rank: %d\n\n", result.Rank))
+	}
+
+	fmt.Print(sb.String())
+	return sb.String()
 }
 
 func (r Scraper) getScrapeURL() string {

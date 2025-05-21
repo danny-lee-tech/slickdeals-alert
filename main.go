@@ -1,39 +1,36 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"strings"
+	"os"
 
 	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/scraper"
 )
 
 func main() {
-	scraper1 := scraper.Scraper{
-		VoteFilter:        2,
-		NotifyMinimumRank: 7,
+	emailEnabled := true
+	var emailPassword string
+	if len(os.Args) <= 1 {
+		emailEnabled = false
+	} else {
+		emailPassword = os.Args[1]
 	}
 
-	results, err := scraper1.Execute()
+	scraper1 := scraper.Scraper{
+		VoteFilter:        1,
+		NotifyMinimumRank: 8,
+		GmailSetting: emailer.GmailSettingConfig{
+			Enabled:            emailEnabled,
+			SourceEmailAddress: "purewhiteasian@gmail.com",
+			TargetEmailAddress: "onfire_22043@yahoo.com",
+			Password:           emailPassword,
+		},
+	}
+
+	err := scraper1.Execute()
 	if err != nil {
 		log.Fatal("Error:", err)
 		return
 	}
-
-	if len(results) == 0 {
-		fmt.Println("No results found")
-		return
-	}
-
-	var sb strings.Builder
-
-	for _, result := range results {
-		sb.WriteString(fmt.Sprintf("Title: %s\n", result.Text))
-		sb.WriteString(fmt.Sprintf("URL: %s\n", result.Url))
-		sb.WriteString(fmt.Sprintf("Rank: %d\n\n", result.Rank))
-	}
-
-	fmt.Print(sb.String())
-	emailer.Email(sb.String())
 }
