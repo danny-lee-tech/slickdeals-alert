@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -16,6 +17,8 @@ func main() {
 	} else {
 		emailPassword = os.Args[1]
 	}
+
+	fmt.Println("Starting scraper")
 
 	scraper1 := scraper.Scraper{
 		VoteFilter:        1,
