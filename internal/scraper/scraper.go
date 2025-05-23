@@ -99,7 +99,6 @@ func formatResults(results []Result) string {
 	for _, result := range results {
 		sb.WriteString(fmt.Sprintf("Title: %s\n", result.Text))
 		sb.WriteString(fmt.Sprintf("URL: %s\n", result.Url))
-		sb.WriteString(fmt.Sprintf("Rank: %d\n\n", result.Rank))
 	}
 
 	fmt.Print(sb.String())
