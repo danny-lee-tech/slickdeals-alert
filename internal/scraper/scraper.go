@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
-	"strconv"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 )
 
 const (
-	baseurl     string = "https://www.slickdeals.net/%s"
 	url         string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=%d&f=9&sort=threadstarted&order=desc&r=1"
 	ignoreTitle string = "A tl;dr of Slickdeals Rules and Guidelines and all that fun stuff"
 )
@@ -38,18 +36,20 @@ func (r Scraper) Execute() error {
 		return err
 	}
 
-	results, err := r.collect(selection)
+	posts, err := r.collect(selection)
 	if err != nil {
 		return err
 	}
 
-	if len(results) == 0 {
+	if len(posts) == 0 {
 		fmt.Println("No results found")
 		return nil
 	}
-	resultString := formatResults(results)
 
-	matches, err := matchesPreviousResults(resultString)
+	postIds := getIds(posts)
+	postsString := formatPosts(posts)
+
+	matches, err := matchesPreviousPosts(postIds)
 	if err != nil {
 		return err
 	}
@@ -57,35 +57,52 @@ func (r Scraper) Execute() error {
 		fmt.Println("Duplicate results. Avoiding email notification.")
 		return nil
 	}
-	emailer.Email(r.GmailSetting, resultString)
+
+	emailer.Email(r.GmailSetting, postsString)
 
 	return nil
 }
 
-func matchesPreviousResults(resultsString string) (bool, error) {
-	file, err := os.OpenFile("last_results.txt", os.O_RDONLY|os.O_CREATE, 0644)
+func getIds(posts []Post) []string {
+	var ids []string
+	for _, post := range posts {
+		ids = append(ids, post.Id)
+	}
+	return ids
+}
+
+func matchesPreviousPosts(postIds []string) (bool, error) {
+	file, err := os.OpenFile("last_posts.txt", os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return false, err
 	}
 	defer file.Close()
 
-	lastResults, err := io.ReadAll(file)
+	lastPostIdsBytes, err := io.ReadAll(file)
 	if err != nil {
 		return false, err
 	}
-	lastResultsString := string(lastResults)
+	lastPostsString := string(lastPostIdsBytes)
+	lastPostIds := strings.Split(lastPostsString, ",")
 
-	if lastResultsString == resultsString {
+	matches := true
+	for _, postId := range postIds {
+		if !slices.Contains(lastPostIds, postId) {
+			matches = false
+		}
+	}
+
+	if matches {
 		return true, nil
 	}
 
-	file, err = os.OpenFile("last_results.txt", os.O_TRUNC|os.O_WRONLY, 0644)
+	file, err = os.OpenFile("last_posts.txt", os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		return false, err
 	}
 	defer file.Close()
 
-	_, err = file.Write([]byte(resultsString))
+	_, err = file.Write([]byte(strings.Join(postIds, ",")))
 	if err != nil {
 		return false, err
 	}
@@ -93,12 +110,12 @@ func matchesPreviousResults(resultsString string) (bool, error) {
 	return false, nil
 }
 
-func formatResults(results []Result) string {
+func formatPosts(posts []Post) string {
 	var sb strings.Builder
 
-	for _, result := range results {
-		sb.WriteString(fmt.Sprintf("Title: %s\n", result.Text))
-		sb.WriteString(fmt.Sprintf("URL: %s\n", result.Url))
+	for _, post := range posts {
+		sb.WriteString(post.ToString())
+		sb.WriteString("\n")
 	}
 
 	fmt.Print(sb.String())
@@ -141,34 +158,14 @@ func retrieveTableElement(htmlContent string) (*goquery.Selection, error) {
 	return selection, nil
 }
 
-func (r Scraper) collect(selection *goquery.Selection) ([]Result, error) {
-	var results []Result
+func (r Scraper) collect(selection *goquery.Selection) ([]Post, error) {
+	var posts []Post
 	selection.Find("td[id^='td_threadtitle_'] .concat-thumbs").Each(func(index int, row *goquery.Selection) {
-		class, _ := row.Attr("class")
-		re, err := regexp.Compile(`rating(\d+)`)
-		if err == nil {
-			matches := re.FindStringSubmatch(class)
-			rating, err := strconv.Atoi(matches[1])
-			if err == nil && rating >= r.NotifyMinimumRank {
-				threadElement := row.Parent().Parent().Parent()
-				anchorElement := threadElement.Find("span.blueprint a").First()
-				returnText := anchorElement.Text()
-
-				if returnText == ignoreTitle {
-					return
-				}
-
-				hrefValue, _ := anchorElement.Attr("href")
-				returnUrl := fmt.Sprintf(baseurl, hrefValue)
-				result := Result{
-					Url:  returnUrl,
-					Text: returnText,
-					Rank: rating,
-				}
-				results = append(results, result)
-			}
+		post := ConvertFromSelection(row.Parent().Parent().Parent())
+		if post.Rank >= r.NotifyMinimumRank && post.Title != ignoreTitle {
+			posts = append(posts, post)
 		}
 	})
 
-	return results, nil
+	return posts, nil
 }
