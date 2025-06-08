@@ -20,9 +20,9 @@ const (
 )
 
 type Scraper struct {
-	VoteFilter        int                        // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
-	NotifyMinimumRank int                        // the minimum number of thumbs up x 2 before a notification occurs
-	GmailSetting      emailer.GmailSettingConfig // Email Settings
+	VoteFilter        int              // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
+	NotifyMinimumRank int              // the minimum number of thumbs up x 2 before a notification occurs
+	Emailer           *emailer.Emailer // Email Settings
 }
 
 func (r Scraper) Execute() error {
@@ -58,7 +58,11 @@ func (r Scraper) Execute() error {
 		return nil
 	}
 
-	emailer.Email(r.GmailSetting, postsString)
+	if r.Emailer != nil {
+		r.Emailer.Email(postsString)
+	} else {
+		fmt.Println("Email notifications have been disabled")
+	}
 
 	return nil
 }

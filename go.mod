@@ -5,6 +5,7 @@ go 1.24.2
 require (
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/chromedp/chromedp v0.13.6
+	gopkg.in/mail.v2 v2.3.1
 )
 
 require (
@@ -18,5 +19,5 @@ require (
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sys v0.32.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/mail.v2 v2.3.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

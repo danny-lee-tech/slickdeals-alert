@@ -1,0 +1,10 @@
+# Outgoing Email Settings
+# email:
+#   smtp: 
+#   port: 
+#   source_email: 
+#   target_email: 
+#   subject: 
+#   password_file: 
+vote_filter: 1
+notify_min_rank: 8

@@ -1,39 +1,108 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 
+	"github.com/danny-lee-tech/slickdeals-alert/internal/config"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/scraper"
+	"gopkg.in/yaml.v2"
 )
 
+var configLocation = "configs/config.yml"
+
 func main() {
-	emailEnabled := true
-	var emailPassword string
-	if len(os.Args) <= 1 {
-		emailEnabled = false
-	} else {
-		emailPassword = os.Args[1]
-	}
-
-	fmt.Println("Starting scraper")
-
-	scraper1 := scraper.Scraper{
-		VoteFilter:        1,
-		NotifyMinimumRank: 8,
-		GmailSetting: emailer.GmailSettingConfig{
-			Enabled:            emailEnabled,
-			SourceEmailAddress: "purewhiteasian@gmail.com",
-			TargetEmailAddress: "onfire_22043@yahoo.com",
-			Password:           emailPassword,
-		},
-	}
-
-	err := scraper1.Execute()
+	cfg, err := getConfig()
 	if err != nil {
 		log.Fatal("Error:", err)
 		return
 	}
+
+	fmt.Println("Starting scraper")
+
+	scraper := scraper.Scraper{
+		VoteFilter:        *cfg.VoteFilter,
+		NotifyMinimumRank: *cfg.NotifyMinimumRank,
+	}
+
+	if cfg.Email != nil {
+		scraper.Emailer = &emailer.Emailer{
+			SMTP:               cfg.Email.SMTP,
+			Port:               *cfg.Email.Port,
+			SourceEmailAddress: cfg.Email.SourceEmailAddress,
+			TargetEmailAddress: cfg.Email.TargetEmailAddress,
+			Subject:            cfg.Email.Subject,
+			PasswordFile:       cfg.Email.PasswordFile,
+		}
+	}
+
+	err = scraper.Execute()
+	if err != nil {
+		log.Fatal("Error:", err)
+		return
+	}
+}
+
+func getConfig() (config.Config, error) {
+	fmt.Println("Setting up configs", configLocation)
+	cfgBytes, err := os.ReadFile(configLocation)
+	if err != nil {
+		return config.Config{}, err
+	}
+
+	fmt.Println(string(cfgBytes))
+
+	var cfg config.Config
+	err = yaml.UnmarshalStrict(cfgBytes, &cfg)
+	if err != nil {
+		return config.Config{}, err
+	}
+
+	err = validateConfig(&cfg)
+	if err != nil {
+		return config.Config{}, err
+	}
+
+	return cfg, nil
+}
+
+func validateConfig(cfg *config.Config) error {
+	if cfg.NotifyMinimumRank == nil {
+		return errors.New("missing required field: notify_min_rank")
+	}
+
+	if cfg.VoteFilter == nil {
+		return errors.New("missing required field: vote_filter")
+	}
+
+	if cfg.Email != nil {
+		if cfg.Email.SMTP == "" {
+			return errors.New("missing required field: email.smtp")
+		}
+
+		if cfg.Email.Port == nil {
+			return errors.New("missing required field: email.port")
+		}
+
+		if cfg.Email.SourceEmailAddress == "" {
+			return errors.New("missing required field: email.source_email")
+		}
+
+		if cfg.Email.TargetEmailAddress == "" {
+			return errors.New("missing required field: email.target_email")
+		}
+
+		if cfg.Email.Subject == "" {
+			return errors.New("missing required field: email.subject")
+		}
+
+		if cfg.Email.PasswordFile == "" {
+			return errors.New("missing required field: email.password_file")
+		}
+	}
+
+	return nil
 }

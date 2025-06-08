@@ -1,21 +1,32 @@
 package emailer
 
 import (
+	"encoding/base64"
 	"fmt"
+	"os"
 
 	gomail "gopkg.in/mail.v2"
 )
 
-type GmailSettingConfig struct {
+type Emailer struct {
+	SMTP               string
+	Port               int
 	SourceEmailAddress string
 	TargetEmailAddress string
-	Password           string
-	Enabled            bool
+	Subject            string
+	PasswordFile       string
 }
 
-func Email(config GmailSettingConfig, messageString string) error {
-	if !config.Enabled {
-		fmt.Println(config.Password)
+func (emailer Emailer) Email(messageString string) error {
+	passwordBytes, err := os.ReadFile(emailer.PasswordFile)
+	if err != nil {
+		fmt.Println("Error: ", err)
+		fmt.Println("Email notification disabled")
+		return nil
+	}
+	password, _ := base64.StdEncoding.DecodeString(string(passwordBytes))
+	if err != nil {
+		fmt.Println("Error: ", err)
 		fmt.Println("Email notification disabled")
 		return nil
 	}
@@ -24,15 +35,15 @@ func Email(config GmailSettingConfig, messageString string) error {
 	message := gomail.NewMessage()
 
 	// Set email headers
-	message.SetHeader("From", config.SourceEmailAddress)
-	message.SetHeader("To", config.TargetEmailAddress)
-	message.SetHeader("Subject", "Slickdeals Alerts")
+	message.SetHeader("From", emailer.SourceEmailAddress)
+	message.SetHeader("To", emailer.TargetEmailAddress)
+	message.SetHeader("Subject", emailer.Subject)
 
 	// Set email body
 	message.SetBody("text/plain", messageString)
 
 	// Set up the SMTP dialer
-	dialer := gomail.NewDialer("smtp.gmail.com", 587, config.SourceEmailAddress, config.Password)
+	dialer := gomail.NewDialer(emailer.SMTP, emailer.Port, emailer.SourceEmailAddress, string(password))
 
 	// Send the email
 	if err := dialer.DialAndSend(message); err != nil {
