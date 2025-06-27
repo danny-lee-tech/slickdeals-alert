@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -15,28 +17,86 @@ var ratingRegex = regexp.MustCompile(`rating(\d+)`)
 func ConvertFromSelection(selection *goquery.Selection) Post {
 	post := Post{}
 
-	id, title, url := getIdTitleAndUrl(selection)
-	post.Id = id
-	post.Title = title
-	post.Url = url
-	post.Rank = getRank(selection)
+	selection.Find("td").Each(func(index int, cell *goquery.Selection) {
+		switch index {
+		// Category = 1
+		case 1:
+			post.Category = getCategory(cell)
+		// Id, Title, URL = 2
+		case 2:
+			id, title, url := getIdTitleAndUrl(cell)
+			post.Id = id
+			post.Title = title
+			post.Url = url
+			post.Rank = getRank(cell)
+		// Thread Started = 3
+		case 3:
+			post.Created = getDate(cell)
+		// Reply Count = 4
+		case 4:
+			post.ReplyCount = getReplyCount(cell)
+		// View Count = 5
+		case 5:
+			post.ViewCount = getViewCount(cell)
+		// Last Post = 6
+		case 6:
+			post.LastPosted = getDate(cell)
+		}
+	})
 
 	return post
 }
 
+func getDate(selection *goquery.Selection) time.Time {
+	element := selection.Find(".smallfont").First()
+	dateText := strings.TrimSpace(element.Text())
+	var day, year int
+	var month time.Month
+	if strings.Contains(dateText, "Today") {
+		today := time.Now()
+		month = today.Month()
+		day = today.Day()
+		year = today.Year()
+	}
+
+	timeElement := element.Find(".time").First()
+	timeString := strings.TrimSpace(timeElement.Text())
+	timeObject, _ := time.Parse("3:05 AM", timeString)
+
+	return time.Date(year, month, day, timeObject.Hour(), timeObject.Minute(), 0, 0, time.UTC)
+}
+
+func getCategory(selection *goquery.Selection) string {
+	element := selection.Find(".threadCategoryForm button").First()
+	category := element.Text()
+	return category
+}
+
+func getReplyCount(selection *goquery.Selection) int {
+	element := selection.Find("a").First()
+	replyCountString := element.Text()
+	replyCount, _ := strconv.Atoi(replyCountString)
+	return replyCount
+}
+
+func getViewCount(selection *goquery.Selection) int {
+	viewCount, _ := strconv.Atoi(strings.TrimSpace(selection.Text()))
+	return viewCount
+}
+
 func getIdTitleAndUrl(selection *goquery.Selection) (string, string, string) {
-	anchorElement := selection.Find("span.blueprint a").First()
-	title := anchorElement.Text()
-	relativeUrl, _ := anchorElement.Attr("href")
+	element := selection.Find("span.blueprint a").First()
+	title := element.Text()
+	relativeUrl, _ := element.Attr("href")
 	url := fmt.Sprintf(baseurl, relativeUrl)
-	id, _ := anchorElement.Attr("id")
+	id, _ := element.Attr("id")
 
 	return id, title, url
 }
 
 func getRank(selection *goquery.Selection) int {
-	thumbElement := selection.Find(".concat-thumbs").First()
-	class, _ := thumbElement.Attr("class")
+	element := selection.Find(".concat-thumbs").First()
+	class, _ := element.Attr("class")
 	matches := ratingRegex.FindStringSubmatch(class)
 	rank := -1
 	if len(matches) >= 1 {

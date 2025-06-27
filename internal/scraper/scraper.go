@@ -118,7 +118,7 @@ func formatPosts(posts []Post) string {
 	var sb strings.Builder
 
 	for _, post := range posts {
-		sb.WriteString(post.ToString())
+		sb.WriteString(post.PrintableInfo())
 		sb.WriteString("\n")
 	}
 
@@ -164,8 +164,8 @@ func retrieveTableElement(htmlContent string) (*goquery.Selection, error) {
 
 func (r Scraper) collect(selection *goquery.Selection) ([]Post, error) {
 	var posts []Post
-	selection.Find("td[id^='td_threadtitle_'] .concat-thumbs").Each(func(index int, row *goquery.Selection) {
-		post := ConvertFromSelection(row.Parent().Parent().Parent())
+	selection.Find("tr[id^='sdpostrow']").Each(func(index int, row *goquery.Selection) {
+		post := ConvertFromSelection(row)
 		if post.Rank >= r.NotifyMinimumRank && post.Title != ignoreTitle {
 			posts = append(posts, post)
 		}
