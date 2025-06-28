@@ -6,5 +6,11 @@
 #   target_email: 
 #   subject: 
 #   password_file: 
+
+# PushBullet Settings
+# pushbullet:
+#   api_key:
+#   tag:
+
 vote_filter: 1
 notify_min_rank: 8

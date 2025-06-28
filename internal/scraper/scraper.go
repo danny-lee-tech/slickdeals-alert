@@ -12,6 +12,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
+	"github.com/danny-lee-tech/slickdeals-alert/internal/pushbullet"
 )
 
 const (
@@ -20,9 +21,10 @@ const (
 )
 
 type Scraper struct {
-	VoteFilter        int              // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
-	NotifyMinimumRank int              // the minimum number of thumbs up x 2 before a notification occurs
-	Emailer           *emailer.Emailer // Email Settings
+	VoteFilter        int // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
+	NotifyMinimumRank int // the minimum number of thumbs up x 2 before a notification occurs
+	Emailer           *emailer.Emailer
+	PushBullet        *pushbullet.PushBullet
 }
 
 func (r Scraper) Execute() error {
@@ -46,72 +48,79 @@ func (r Scraper) Execute() error {
 		return nil
 	}
 
-	postIds := getIds(posts)
-	postsString := formatPosts(posts)
-
-	matches, err := matchesPreviousPosts(postIds)
+	dedupPosts, err := deDuplicatePosts(posts)
 	if err != nil {
 		return err
 	}
-	if matches {
-		fmt.Println("Duplicate results. Avoiding email notification.")
-		return nil
-	}
+	postsString := formatPosts(dedupPosts)
 
-	if r.Emailer != nil {
-		r.Emailer.Email(postsString)
+	if len(dedupPosts) > 0 {
+		if r.Emailer != nil {
+			err = r.Emailer.Email(postsString)
+			if err != nil {
+				fmt.Println("Warning: Email", err)
+			}
+		} else {
+			fmt.Println("Email notifications have been disabled")
+		}
+
+		if r.PushBullet != nil {
+			err = r.PushBullet.PostToChannel(postsString)
+			if err != nil {
+				fmt.Println("Warning: PushBullet", err)
+			}
+		} else {
+			fmt.Println("PushBullet pushes have been disabled")
+		}
 	} else {
-		fmt.Println("Email notifications have been disabled")
+		fmt.Println("Duplicate results. Avoiding email notification.")
 	}
 
 	return nil
 }
 
-func getIds(posts []Post) []string {
-	var ids []string
-	for _, post := range posts {
-		ids = append(ids, post.Id)
-	}
-	return ids
-}
-
-func matchesPreviousPosts(postIds []string) (bool, error) {
+func deDuplicatePosts(posts []Post) ([]Post, error) {
 	file, err := os.OpenFile("last_posts.txt", os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	defer file.Close()
 
 	lastPostIdsBytes, err := io.ReadAll(file)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	lastPostsString := string(lastPostIdsBytes)
 	lastPostIds := strings.Split(lastPostsString, ",")
 
-	matches := true
-	for _, postId := range postIds {
-		if !slices.Contains(lastPostIds, postId) {
-			matches = false
+	dedupedPosts := []Post{}
+	for _, post := range posts {
+		if !slices.Contains(lastPostIds, post.Id) {
+			dedupedPosts = append(dedupedPosts, post)
+			lastPostIds = append(lastPostIds, post.Id)
 		}
 	}
 
-	if matches {
-		return true, nil
+	if len(dedupedPosts) == 0 {
+		return nil, nil
 	}
 
 	file, err = os.OpenFile("last_posts.txt", os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	defer file.Close()
 
-	_, err = file.Write([]byte(strings.Join(postIds, ",")))
+	if len(lastPostIds) > 20 {
+		elementsToDelete := len(lastPostIds) - 10
+		lastPostIds = lastPostIds[elementsToDelete:]
+	}
+	_, err = file.Write([]byte(strings.Join(lastPostIds, ",")))
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return false, nil
+	return dedupedPosts, nil
 }
 
 func formatPosts(posts []Post) string {
