@@ -13,7 +13,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var configLocation = "configs/config.yml"
+var DefaultConfigLocation = "configs/config.yml"
 
 func main() {
 	cfg, err := getConfig()
@@ -55,6 +55,7 @@ func main() {
 }
 
 func getConfig() (config.Config, error) {
+	configLocation := getConfigLocation()
 	fmt.Println("Setting up configs", configLocation)
 	cfgBytes, err := os.ReadFile(configLocation)
 	if err != nil {
@@ -113,4 +114,12 @@ func validateConfig(cfg *config.Config) error {
 	}
 
 	return nil
+}
+
+func getConfigLocation() string {
+	if len(os.Args) > 1 {
+		return os.Args[1]
+	}
+
+	return DefaultConfigLocation
 }
