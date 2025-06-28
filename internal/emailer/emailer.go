@@ -24,7 +24,7 @@ func (emailer Emailer) Email(messageString string) error {
 		fmt.Println("Email notification disabled")
 		return nil
 	}
-	password, _ := base64.StdEncoding.DecodeString(string(passwordBytes))
+	password, err := base64.StdEncoding.DecodeString(string(passwordBytes))
 	if err != nil {
 		fmt.Println("Error: ", err)
 		fmt.Println("Email notification disabled")
