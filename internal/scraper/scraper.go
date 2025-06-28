@@ -12,7 +12,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/chromedp/chromedp"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
-	"github.com/danny-lee-tech/slickdeals-alert/internal/pushbullet"
+	"github.com/danny-lee-tech/slickdeals-alert/internal/pushbulleter"
 )
 
 const (
@@ -24,7 +24,7 @@ type Scraper struct {
 	VoteFilter        int // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
 	NotifyMinimumRank int // the minimum number of thumbs up x 2 before a notification occurs
 	Emailer           *emailer.Emailer
-	PushBullet        *pushbullet.PushBullet
+	PushBulleter      *pushbulleter.PushBulleter
 }
 
 func (r Scraper) Execute() error {
@@ -64,8 +64,8 @@ func (r Scraper) Execute() error {
 			fmt.Println("Email notifications have been disabled")
 		}
 
-		if r.PushBullet != nil {
-			err = r.PushBullet.PostToChannel(postsString)
+		if r.PushBulleter != nil {
+			err = r.PushBulleter.PostToChannel(postsString)
 			if err != nil {
 				fmt.Println("Warning: PushBullet", err)
 			}

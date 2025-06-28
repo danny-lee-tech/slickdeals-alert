@@ -8,7 +8,7 @@ import (
 
 	"github.com/danny-lee-tech/slickdeals-alert/internal/config"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/emailer"
-	"github.com/danny-lee-tech/slickdeals-alert/internal/pushbullet"
+	"github.com/danny-lee-tech/slickdeals-alert/internal/pushbulleter"
 	"github.com/danny-lee-tech/slickdeals-alert/internal/scraper"
 	"gopkg.in/yaml.v2"
 )
@@ -41,7 +41,7 @@ func main() {
 	}
 
 	if cfg.PushBullet != nil {
-		scraper.PushBullet = &pushbullet.PushBullet{
+		scraper.PushBulleter = &pushbulleter.PushBulleter{
 			APIKey: cfg.PushBullet.APIKey,
 			Tag:    cfg.PushBullet.Tag,
 		}
