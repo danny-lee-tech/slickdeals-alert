@@ -84,7 +84,11 @@ func deDuplicatePosts(posts []Post) ([]Post, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(fmt.Sprintf("Error while closing resource %q: %+v", file.Name(), err))
+		}
+	}()
 
 	lastPostIdsBytes, err := io.ReadAll(file)
 	if err != nil {
@@ -109,7 +113,11 @@ func deDuplicatePosts(posts []Post) ([]Post, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			panic(fmt.Sprintf("Error while closing resource %q: %+v", file.Name(), err))
+		}
+	}()
 
 	if len(lastPostIds) > 20 {
 		elementsToDelete := len(lastPostIds) - 10
@@ -146,7 +154,11 @@ func (r Scraper) scrape() (string, error) {
 	defer cancel()
 
 	c, _ := chromedp.NewContext(ctx)
-	defer chromedp.Cancel(c)
+	defer func() {
+		if err := chromedp.Cancel(c); err != nil {
+			panic("chromedp could not be cancelled")
+		}
+	}()
 
 	var htmlContent string
 	err := chromedp.Run(c,
