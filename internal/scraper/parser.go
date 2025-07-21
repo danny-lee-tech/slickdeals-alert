@@ -74,13 +74,13 @@ func getCategory(selection *goquery.Selection) string {
 
 func getReplyCount(selection *goquery.Selection) int {
 	element := selection.Find("a").First()
-	replyCountString := element.Text()
+	replyCountString := strings.ReplaceAll(element.Text(), ",", "")
 	replyCount, _ := strconv.Atoi(replyCountString)
 	return replyCount
 }
 
 func getViewCount(selection *goquery.Selection) int {
-	viewCount, _ := strconv.Atoi(strings.TrimSpace(selection.Text()))
+	viewCount, _ := strconv.Atoi(strings.ReplaceAll(strings.TrimSpace(selection.Text()), ",", ""))
 	return viewCount
 }
 
