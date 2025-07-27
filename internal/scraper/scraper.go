@@ -175,10 +175,27 @@ func (r Scraper) collect(selection *goquery.Selection) ([]Post, error) {
 	var posts []Post
 	selection.Find("tr[id^='sdpostrow']").Each(func(index int, row *goquery.Selection) {
 		post := ConvertFromSelection(row)
-		if post.Rank >= r.NotifyMinimumRank && post.Title != ignoreTitle {
+		reason := r.determineEligibility(post)
+		if reason != "" {
+			post.Reason = reason
 			posts = append(posts, post)
 		}
 	})
 
 	return posts, nil
+}
+
+func (r Scraper) determineEligibility(post Post) string {
+	if post.Title == ignoreTitle {
+		return ""
+	}
+	if post.Rank >= r.NotifyMinimumRank {
+		return "Minimum Rank Within First Page"
+	}
+	elapsed := time.Since(post.Created)
+	if elapsed.Minutes() < 60 && (post.ViewCount >= 800 || post.ReplyCount >= 3) {
+		return "View/Reply Count Within First Hour"
+	}
+
+	return ""
 }

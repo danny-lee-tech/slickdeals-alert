@@ -16,6 +16,7 @@ type Post struct {
 	Created    time.Time
 	LastPosted time.Time
 	Rank       int
+	Reason     string
 }
 
 func (post *Post) ToString() string {
@@ -36,8 +37,8 @@ func (post *Post) ToString() string {
 func (post *Post) PrintableInfo() string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("Id: %s\n", post.Id))
 	sb.WriteString(fmt.Sprintf("Title: %s\n", post.Title))
+	sb.WriteString(fmt.Sprintf("Reason: %s\n", post.Reason))
 	sb.WriteString(fmt.Sprintf("Rank: %d\n", post.Rank))
 	sb.WriteString(fmt.Sprintf("Category: %s\n", post.Category))
 	sb.WriteString(fmt.Sprintf("Replies: %d\n", post.ReplyCount))
