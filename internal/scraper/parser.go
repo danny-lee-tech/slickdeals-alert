@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -12,7 +13,11 @@ import (
 
 const baseurl string = "https://www.slickdeals.net/%s"
 
-var ratingRegex = regexp.MustCompile(`rating(\d+)`)
+var (
+	timeLocOnce sync.Once
+	timeLoc     *time.Location
+	ratingRegex = regexp.MustCompile(`rating(\d+)`)
+)
 
 func ConvertFromSelection(selection *goquery.Selection) Post {
 	post := Post{}
@@ -61,9 +66,25 @@ func getDate(selection *goquery.Selection) time.Time {
 
 	timeElement := element.Find(".time").First()
 	timeString := strings.TrimSpace(timeElement.Text())
-	timeObject, _ := time.Parse("3:05 AM", timeString)
+	timeObject, _ := time.Parse("15:04 AM", timeString)
 
-	return time.Date(year, month, day, timeObject.Hour(), timeObject.Minute(), 0, 0, time.UTC)
+	loc, err := getLosAngelesTimeLocation()
+	if err != nil {
+		var t time.Time
+		return t
+	}
+	return time.Date(year, month, day, timeObject.Hour(), timeObject.Minute(), 0, 0, loc)
+}
+
+func getLosAngelesTimeLocation() (*time.Location, error) {
+	var loadErr error
+	timeLocOnce.Do(func() {
+		timeLoc, loadErr = time.LoadLocation("America/Los_Angeles")
+	})
+	if loadErr != nil {
+		return nil, loadErr
+	}
+	return timeLoc, nil
 }
 
 func getCategory(selection *goquery.Selection) string {
