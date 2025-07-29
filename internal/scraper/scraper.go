@@ -193,12 +193,12 @@ func (r Scraper) determineEligibility(post Post) string {
 		return "High Rank Within 1st Page"
 	}
 	elapsed := time.Since(post.Created)
-	if elapsed.Minutes() < 60 {
-		if post.ViewCount >= 800 {
+	if elapsed.Minutes() < 60 && post.Rank >= 1 {
+		if post.ViewCount >= 900 {
 			return "View Count Within First Hour"
 		}
 
-		if post.ReplyCount >= 3 {
+		if post.ReplyCount >= 4 {
 			return "Reply Count Within First Hour"
 		}
 	}
