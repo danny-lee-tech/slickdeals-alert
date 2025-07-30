@@ -198,7 +198,7 @@ func (r Scraper) determineEligibility(post Post) string {
 			return "View Count Within First Hour"
 		}
 
-		if post.ReplyCount >= 4 {
+		if post.ReplyCount >= 8 {
 			return "Reply Count Within First Hour"
 		}
 	}
