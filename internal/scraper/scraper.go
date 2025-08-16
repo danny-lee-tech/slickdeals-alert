@@ -142,7 +142,7 @@ func (r Scraper) getScrapeURL() string {
 func (r Scraper) scrape() (string, error) {
 	scrapeUrl := r.getScrapeURL()
 	fmt.Printf("Scraping URL: %s\n", scrapeUrl)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
 
 	c, _ := chromedp.NewContext(ctx)
