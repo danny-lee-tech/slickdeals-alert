@@ -15,10 +15,12 @@ import (
 	"github.com/danny-lee-tech/slickdeals-alert/internal/pushbulleter"
 )
 
-const (
-	url         string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=%d&f=9&sort=threadstarted&order=desc&r=1"
-	ignoreTitle string = "A tl;dr of Slickdeals Rules and Guidelines and all that fun stuff"
-)
+const url string = "https://www.slickdeals.net/forums/filtered/?daysprune=7&vote=%d&f=9&sort=threadstarted&order=desc&r=1"
+
+var titleBlacklist = [2]string{
+	"A tl;dr of Slickdeals Rules and Guidelines and all that fun stuff",
+	"From Company Ownership to Front Page: Your Top Slickdeals Questions, Answered",
+}
 
 type Scraper struct {
 	VoteFilter        int // Search Filter on minimum number of votes. Used to determine the URL to scrape, specifically the vote query parameter
@@ -186,8 +188,10 @@ func (r Scraper) collect(selection *goquery.Selection) ([]Post, error) {
 }
 
 func (r Scraper) determineEligibility(post Post) string {
-	if post.Title == ignoreTitle {
-		return ""
+	for _, blacklistItem := range titleBlacklist {
+		if post.Title == blacklistItem {
+			return ""
+		}
 	}
 	if post.Rank >= r.NotifyMinimumRank {
 		return "High Rank Within 1st Page"
